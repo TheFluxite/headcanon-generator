@@ -1,0 +1,10 @@
+{
+    "1 Character": [
+        "*character1* likes to drink soda",
+        "*character1* is not allowed to drink energy drinks"
+    ],
+    "2 Character": [
+        "*character1* likes to drink soda but *character2* doesn't",
+        "*character1* does not allow *character2* to drink energy drinks"
+    ]
+}
