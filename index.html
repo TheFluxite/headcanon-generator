@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Character Headcanon Generator</title>
     <style>
+        /* Your CSS for overall layout, tabs, buttons, and results */
         * {
             margin: 0;
             padding: 0;
@@ -98,6 +99,7 @@
 
         .form-group {
             margin-bottom: 30px;
+            position: relative; /* Essential for positioning suggestions list */
         }
 
         .form-group label {
@@ -129,6 +131,34 @@
         .form-group input::placeholder {
             color: #adb5bd;
             font-style: italic;
+        }
+
+        /* Styles for suggestions list */
+        .suggestions-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border: 1px solid #ced4da;
+            border-top: none;
+            max-height: 150px;
+            overflow-y: auto;
+            position: absolute; /* Positions list relative to its .form-group parent */
+            width: 100%;
+            z-index: 10; /* Ensures list appears above other elements */
+            background-color: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            border-radius: 0 0 4px 4px;
+        }
+
+        .suggestions-list li {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #495057;
+        }
+
+        .suggestions-list li:hover {
+            background-color: #f0f0f0;
         }
 
         .generate-btn {
@@ -260,6 +290,7 @@
                 <div class="form-group">
                     <label for="single-character">Character Name</label>
                     <input type="text" id="single-character" placeholder="Enter character name">
+                    <ul class="suggestions-list" id="single-suggestions"></ul>
                 </div>
                 <button class="generate-btn" onclick="generateHeadcanon('single')" disabled>
                     Generate Headcanon
@@ -270,10 +301,12 @@
                 <div class="form-group">
                     <label for="character1">First Character</label>
                     <input type="text" id="character1" placeholder="Enter first character name">
+                    <ul class="suggestions-list" id="char1-suggestions"></ul>
                 </div>
                 <div class="form-group">
                     <label for="character2">Second Character</label>
                     <input type="text" id="character2" placeholder="Enter second character name">
+                    <ul class="suggestions-list" id="char2-suggestions"></ul>
                 </div>
                 <button class="generate-btn" onclick="generateHeadcanon('double')" disabled>
                     Generate Headcanon
@@ -287,11 +320,12 @@
     </div>
 
     <script>
-        // Global variables
+        // Global variables for data storage and loading status
         let headcanonData = {};
+        let allCharacters = []; // Stores characters from characters.json
         let isDataLoaded = false;
 
-        // Fallback data in case JSON fails to load
+        // Fallback data in case headcanons.json fails to load
         const fallbackData = {
             "1 Character": [
                 "*character1* likes to drink soda",
@@ -315,10 +349,99 @@
             ]
         };
 
-        // Load headcanon data from JSON file
+        // --- Functions for character suggestions ---
+
+        /**
+         * Loads character data from 'characters.json'.
+         * If the file cannot be loaded, the suggestion feature will not work,
+         * but the main headcanon generation will still use fallback data.
+         */
+        async function loadCharactersData() {
+            try {
+                const response = await fetch('characters.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                allCharacters = await response.json();
+                console.log('Characters loaded successfully for suggestions:', allCharacters);
+            } catch (error) {
+                console.error('Error loading characters data for suggestions:', error);
+                // No need to set isDataLoaded to false here, as headcanons can still load
+            }
+        }
+
+        /**
+         * Displays character suggestions in the provided container.
+         * @param {HTMLInputElement} inputElement The input field element.
+         * @param {HTMLElement} suggestionsContainer The UL element to display suggestions.
+         * @param {string} query The current text typed by the user.
+         */
+        function showSuggestions(inputElement, suggestionsContainer, query) {
+            suggestionsContainer.innerHTML = ''; // Clear previous suggestions
+
+            if (query.length < 1 || allCharacters.length === 0) {
+                return; // No suggestions if query is empty or no characters loaded
+            }
+
+            const filteredCharacters = allCharacters.filter(character =>
+                character.toLowerCase().startsWith(query.toLowerCase())
+            );
+
+            // Limit the number of suggestions to display
+            const limitedSuggestions = filteredCharacters.slice(0, 7);
+
+            limitedSuggestions.forEach(character => {
+                const listItem = document.createElement('li');
+                listItem.textContent = character;
+                listItem.addEventListener('click', () => {
+                    inputElement.value = character; // Fill input with selected suggestion
+                    suggestionsContainer.innerHTML = ''; // Clear suggestions
+                    updateButtonStates(); // Update button state after filling
+                    inputElement.focus(); // Keep focus on the input after selection
+                });
+                suggestionsContainer.appendChild(listItem);
+            });
+        }
+
+        /**
+         * Sets up event listeners for an input field to enable character suggestions.
+         * @param {string} inputElementId The ID of the input field.
+         * @param {string} suggestionsContainerId The ID of the UL element for suggestions.
+         */
+        function handleInputWithSuggestions(inputElementId, suggestionsContainerId) {
+            const inputElement = document.getElementById(inputElementId);
+            const suggestionsContainer = document.getElementById(suggestionsContainerId);
+
+            if (!inputElement || !suggestionsContainer) {
+                console.warn(`Could not find elements for ${inputElementId} or ${suggestionsContainerId}. Suggestions will not work for this input.`);
+                return;
+            }
+
+            // On input, show suggestions
+            inputElement.addEventListener('input', () => {
+                const query = inputElement.value.trim();
+                showSuggestions(inputElement, suggestionsContainer, query);
+                updateButtonStates(); // Re-evaluate button state
+            });
+
+            // On blur (lose focus), clear suggestions after a short delay
+            // This delay allows the click event on a suggestion to fire first
+            inputElement.addEventListener('blur', () => {
+                setTimeout(() => {
+                    suggestionsContainer.innerHTML = '';
+                }, 150);
+            });
+        }
+
+        // --- Core Headcanon Generator Functions ---
+
+        /**
+         * Loads headcanon data from 'headcanons.json'.
+         * Falls back to 'fallbackData' if the file cannot be loaded or is invalid.
+         */
         async function loadHeadcanonData() {
             const resultDiv = document.getElementById('result');
-            resultDiv.textContent = 'Loading headcanon data...';
+            resultDiv.textContent = 'Loading data...';
             resultDiv.className = 'result loading';
 
             try {
@@ -330,13 +453,13 @@
                 
                 const data = await response.json();
                 
-                // Validate data structure
+                // Validate data structure to ensure expected keys exist
                 if (!data["1 Character"] || !data["2 Character"]) {
                     throw new Error('Invalid JSON structure. Expected "1 Character" and "2 Character" arrays.');
                 }
                 
                 headcanonData = data;
-                isDataLoaded = true;
+                isDataLoaded = true; // Mark headcanon data as loaded
                 
                 resultDiv.textContent = 'Ready to generate headcanons';
                 resultDiv.className = 'result empty';
@@ -345,38 +468,55 @@
                 
             } catch (error) {
                 console.error('Error loading headcanon data:', error);
-                console.log('Using fallback data instead.');
+                console.log('Using fallback headcanon data instead.');
                 
                 headcanonData = fallbackData;
-                isDataLoaded = true;
+                isDataLoaded = true; // Mark as loaded, even if it's fallback data
                 
                 resultDiv.textContent = `Could not load headcanons.json. Using built-in headcanons instead.`;
                 resultDiv.className = 'result error';
             }
             
-            // Enable buttons after data is loaded
+            // Update button states once data is loaded (or fallback is set)
             updateButtonStates();
         }
 
-        // Switch between tabs
+        /**
+         * Switches between 'Single Character' and 'Two Characters' tabs.
+         * @param {string} tabName The name of the tab to switch to ('single' or 'double').
+         */
         function switchTab(tabName) {
             // Remove active class from all tabs
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             
-            // Add active class to clicked tab
-            event.target.classList.add('active');
+            // Add active class to the clicked tab button
+            // 'event' is a global object in browser, but better to pass it or use e.target
+            // For simplicity here, assuming 'event' from inline onclick.
+            // If this function is called programmatically, you'd need to adjust.
+            const clickedTabButton = document.querySelector(`.tab[onclick*="switchTab('${tabName}')"]`);
+            if (clickedTabButton) {
+                clickedTabButton.classList.add('active');
+            }
             
             // Hide all tab panels
             document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
             
-            // Show selected tab panel
+            // Show the selected tab panel
             document.getElementById(tabName + '-tab').classList.remove('hidden');
             
-            // Update button states
+            // Clear any active suggestions when switching tabs for a clean UI
+            document.getElementById('single-suggestions').innerHTML = '';
+            document.getElementById('char1-suggestions').innerHTML = '';
+            document.getElementById('char2-suggestions').innerHTML = '';
+
+            // Update button states after tab switch
             updateButtonStates();
         }
 
-        // Update button states based on selections and data loading
+        /**
+         * Updates the disabled state of the generate buttons based on input validity
+         * and whether headcanon data has been loaded.
+         */
         function updateButtonStates() {
             const singleBtn = document.querySelector('#single-tab .generate-btn');
             const doubleBtn = document.querySelector('#double-tab .generate-btn');
@@ -385,29 +525,40 @@
             const char1 = document.getElementById('character1').value.trim();
             const char2 = document.getElementById('character2').value.trim();
             
-            // Disable buttons if data isn't loaded yet or if required fields are empty
+            // Enable single character button if headcanon data is loaded and input is not empty
             singleBtn.disabled = !isDataLoaded || !singleChar;
+
+            // Enable double character button if headcanon data is loaded, both inputs are not empty,
+            // and the two character names are not the same (case-insensitive).
             doubleBtn.disabled = !isDataLoaded || !char1 || !char2 || char1.toLowerCase() === char2.toLowerCase();
         }
 
-        // Generate headcanon
+        /**
+         * Generates and displays a headcanon based on the selected tab and input.
+         * @param {string} type 'single' for one character, 'double' for two characters.
+         */
         function generateHeadcanon(type) {
+            const resultDiv = document.getElementById('result');
+
             if (!isDataLoaded) {
-                const resultDiv = document.getElementById('result');
                 resultDiv.textContent = 'Please wait for headcanon data to load...';
                 resultDiv.className = 'result loading';
                 return;
             }
 
-            const resultDiv = document.getElementById('result');
             let headcanon = '';
             
             if (type === 'single') {
                 const character = document.getElementById('single-character').value.trim();
+                if (!character) {
+                    resultDiv.textContent = 'Please enter a character name.';
+                    resultDiv.className = 'result empty';
+                    return;
+                }
                 const headcanons = headcanonData["1 Character"];
                 
                 if (!headcanons || headcanons.length === 0) {
-                    resultDiv.textContent = 'No single character headcanons available.';
+                    resultDiv.textContent = 'No single character headcanons available. Check your headcanons.json file.';
                     resultDiv.className = 'result error';
                     return;
                 }
@@ -415,13 +566,26 @@
                 const randomHeadcanon = headcanons[Math.floor(Math.random() * headcanons.length)];
                 headcanon = randomHeadcanon.replace(/\*character1\*/g, character);
                 
-            } else {
+            } else { // type === 'double'
                 const char1 = document.getElementById('character1').value.trim();
                 const char2 = document.getElementById('character2').value.trim();
+
+                if (!char1 || !char2) {
+                    resultDiv.textContent = 'Please enter both character names.';
+                    resultDiv.className = 'result empty';
+                    return;
+                }
+
+                if (char1.toLowerCase() === char2.toLowerCase()) {
+                    resultDiv.textContent = 'Character 1 and Character 2 cannot be the same.';
+                    resultDiv.className = 'result error';
+                    return;
+                }
+
                 const headcanons = headcanonData["2 Character"];
                 
                 if (!headcanons || headcanons.length === 0) {
-                    resultDiv.textContent = 'No two character headcanons available.';
+                    resultDiv.textContent = 'No two character headcanons available. Check your headcanons.json file.';
                     resultDiv.className = 'result error';
                     return;
                 }
@@ -436,18 +600,30 @@
             resultDiv.className = 'result generated';
         }
 
-        // Event listeners
+        // --- Initialize on page load ---
         document.addEventListener('DOMContentLoaded', function() {
-            // Load headcanon data
-            loadHeadcanonData();
-            
-            // Add input listeners to all text inputs
-            document.querySelectorAll('input[type="text"]').forEach(input => {
-                input.addEventListener('input', updateButtonStates);
+            // Load both headcanon data and character suggestion data concurrently.
+            // The .then() block ensures that suggestion handlers are set up
+            // only after character data is (attempted to be) loaded.
+            Promise.all([
+                loadHeadcanonData(),  // Loads headcanons.json
+                loadCharactersData()  // Loads characters.json for suggestions
+            ]).then(() => {
+                // Set up suggestion handling for each relevant input field
+                handleInputWithSuggestions('single-character', 'single-suggestions');
+                handleInputWithSuggestions('character1', 'char1-suggestions');
+                handleInputWithSuggestions('character2', 'char2-suggestions');
+
+                // Add input listeners to all text inputs to dynamically update button states.
+                // This ensures the button disables/enables as text is typed/cleared,
+                // even without a suggestion being selected.
+                document.querySelectorAll('input[type="text"]').forEach(input => {
+                    input.addEventListener('input', updateButtonStates);
+                });
+                
+                // Perform an initial update of button states on page load.
+                updateButtonStates();
             });
-            
-            // Initial button state update
-            updateButtonStates();
         });
     </script>
 </body>
