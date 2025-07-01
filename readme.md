@@ -2,7 +2,8 @@
 
 **I do not want you to use this for your Stuff!**
 
-This only shows how the Generator was made, it should not be used to be copied. Although, you can send submission. (thats what open-source does)
+This only shows how the Generator was made, it should not be used to be copied. Although, you can send submission. (thats what open-source does) If you want to submit Ideas, use our Google Form!
+Link to Google Form: https://forms.gle/JF1sjH3DGtg6RSW27
 
 # How to use! (Two Steps)
 1. Open the Website via: https://fluxpoint-headcanons.pages.dev/
