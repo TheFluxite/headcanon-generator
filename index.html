@@ -102,7 +102,7 @@
             font-size: 1.1rem;
         }
 
-        .form-group select {
+        .form-group input {
             width: 100%;
             padding: 15px;
             border: 2px solid #e9ecef;
@@ -113,10 +113,14 @@
             transition: all 0.3s ease;
         }
 
-        .form-group select:focus {
+        .form-group input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #adb5bd;
         }
 
         .generate-btn {
@@ -133,12 +137,12 @@
             margin-bottom: 30px;
         }
 
-        .generate-btn:hover {
+        .generate-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
 
-        .generate-btn:active {
+        .generate-btn:active:not(:disabled) {
             transform: translateY(0);
         }
 
@@ -174,6 +178,18 @@
             background: linear-gradient(135deg, #d4edda, #c3e6cb);
             border-left-color: #28a745;
             animation: fadeInUp 0.5s ease;
+        }
+
+        .result.loading {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+
+        .result.error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            border-left-color: #dc3545;
+            color: #721c24;
         }
 
         @keyframes fadeInUp {
@@ -232,15 +248,11 @@
             <div id="double-tab" class="tab-panel hidden">
                 <div class="form-group">
                     <label for="character1">First Character:</label>
-                    <select id="character1">
-                        <option value="">-- Select first character --</option>
-                    </select>
+                    <input type="text" id="character1" placeholder="Enter first character name...">
                 </div>
                 <div class="form-group">
                     <label for="character2">Second Character:</label>
-                    <select id="character2">
-                        <option value="">-- Select second character --</option>
-                    </select>
+                    <input type="text" id="character2" placeholder="Enter second character name...">
                 </div>
                 <button class="generate-btn" onclick="generateHeadcanon('double')" disabled>
                     Generate Two Character Headcanon ✨
@@ -254,51 +266,75 @@
     </div>
 
     <script>
-        // Sample headcanon data - replace this with your actual JSON file
+        // Global variables
         let headcanonData = {};
+        let isDataLoaded = false;
 
-    // Load data from JSON file
-    fetch('headcanons.json')
-        .then(response => response.json())
-        .then(data => {
-            headcanonData = data;
-            populateDropdowns(); // Refresh dropdowns after loading data
-        })
-            .catch(error => {
-            console.error('Error loading headcanon data:', error);
-            // Fall back to hardcoded data if file fails to load
-    });
+        // Fallback data in case JSON fails to load
+        const fallbackData = {
+            "1 Character": [
+                "*character1* likes to drink soda",
+                "*character1* is not allowed to drink energy drinks",
+                "*character1* secretly collects vintage postcards",
+                "*character1* has a fear of butterflies",
+                "*character1* can play three different musical instruments",
+                "*character1* always sleeps with at least two pillows",
+                "*character1* has never successfully kept a houseplant alive",
+                "*character1* knows all the lyrics to at least 50 songs by heart"
+            ],
+            "2 Character": [
+                "*character1* likes to drink soda but *character2* doesn't",
+                "*character1* does not allow *character2* to drink energy drinks",
+                "*character1* and *character2* have weekly movie nights but always argue about what to watch",
+                "*character1* tries to teach *character2* how to cook but *character2* is hopeless in the kitchen",
+                "*character1* is a morning person while *character2* is definitely not",
+                "*character1* collects something weird and *character2* pretends not to understand why",
+                "*character1* is always cold so *character2* gives them their jacket",
+                "*character1* and *character2* have completely opposite music tastes but somehow make it work"
+            ]
+        };
 
-        // Extract unique character names from the headcanons
-        const characters = new Set();
-        
-        // Add characters mentioned in headcanons (for demo purposes)
-        const demoCharacters = [
-            "Alex", "Blake", "Casey", "Drew", "Emery", "Finley", 
-            "Gray", "Harper", "Indigo", "Jordan", "Kai", "Lane"
-        ];
-        
-        demoCharacters.forEach(char => characters.add(char));
+        // Load headcanon data from JSON file
+        async function loadHeadcanonData() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Loading headcanon data...';
+            resultDiv.className = 'result loading';
 
-        // Populate dropdowns
-        function populateDropdowns() {
-            const selects = ['single-character', 'character1', 'character2'];
-            selects.forEach(selectId => {
-                const select = document.getElementById(selectId);
-                const currentValue = select.value;
+            try {
+                const response = await fetch('headcanons.json');
                 
-                // Clear existing options except the first one
-                select.innerHTML = select.options[0].outerHTML;
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
-                characters.forEach(character => {
-                    const option = document.createElement('option');
-                    option.value = character;
-                    option.textContent = character;
-                    select.appendChild(option);
-                });
+                const data = await response.json();
                 
-                select.value = currentValue;
-            });
+                // Validate data structure
+                if (!data["1 Character"] || !data["2 Character"]) {
+                    throw new Error('Invalid JSON structure. Expected "1 Character" and "2 Character" arrays.');
+                }
+                
+                headcanonData = data;
+                isDataLoaded = true;
+                
+                resultDiv.textContent = 'Headcanon data loaded successfully! Ready to generate headcanons! 🌟';
+                resultDiv.className = 'result generated';
+                
+                console.log('Headcanon data loaded successfully:', headcanonData);
+                
+            } catch (error) {
+                console.error('Error loading headcanon data:', error);
+                console.log('Using fallback data instead.');
+                
+                headcanonData = fallbackData;
+                isDataLoaded = true;
+                
+                resultDiv.textContent = `Could not load headcanons.json (${error.message}). Using built-in headcanons instead. 📝`;
+                resultDiv.className = 'result error';
+            }
+            
+            // Enable buttons after data is loaded
+            updateButtonStates();
         }
 
         // Switch between tabs
@@ -319,33 +355,56 @@
             updateButtonStates();
         }
 
-        // Update button states based on selections
+        // Update button states based on selections and data loading
         function updateButtonStates() {
             const singleBtn = document.querySelector('#single-tab .generate-btn');
             const doubleBtn = document.querySelector('#double-tab .generate-btn');
             
-            const singleChar = document.getElementById('single-character').value;
-            const char1 = document.getElementById('character1').value;
-            const char2 = document.getElementById('character2').value;
+            const singleChar = document.getElementById('single-character').value.trim();
+            const char1 = document.getElementById('character1').value.trim();
+            const char2 = document.getElementById('character2').value.trim();
             
-            singleBtn.disabled = !singleChar;
-            doubleBtn.disabled = !char1 || !char2 || char1 === char2;
+            // Disable buttons if data isn't loaded yet or if required fields are empty
+            singleBtn.disabled = !isDataLoaded || !singleChar;
+            doubleBtn.disabled = !isDataLoaded || !char1 || !char2 || char1.toLowerCase() === char2.toLowerCase();
         }
 
         // Generate headcanon
         function generateHeadcanon(type) {
+            if (!isDataLoaded) {
+                const resultDiv = document.getElementById('result');
+                resultDiv.textContent = 'Please wait for headcanon data to load...';
+                resultDiv.className = 'result loading';
+                return;
+            }
+
             const resultDiv = document.getElementById('result');
             let headcanon = '';
             
             if (type === 'single') {
-                const character = document.getElementById('single-character').value;
+                const character = document.getElementById('single-character').value.trim();
                 const headcanons = headcanonData["1 Character"];
+                
+                if (!headcanons || headcanons.length === 0) {
+                    resultDiv.textContent = 'No single character headcanons available.';
+                    resultDiv.className = 'result error';
+                    return;
+                }
+                
                 const randomHeadcanon = headcanons[Math.floor(Math.random() * headcanons.length)];
                 headcanon = randomHeadcanon.replace(/\*character1\*/g, character);
+                
             } else {
-                const char1 = document.getElementById('character1').value;
-                const char2 = document.getElementById('character2').value;
+                const char1 = document.getElementById('character1').value.trim();
+                const char2 = document.getElementById('character2').value.trim();
                 const headcanons = headcanonData["2 Character"];
+                
+                if (!headcanons || headcanons.length === 0) {
+                    resultDiv.textContent = 'No two character headcanons available.';
+                    resultDiv.className = 'result error';
+                    return;
+                }
+                
                 const randomHeadcanon = headcanons[Math.floor(Math.random() * headcanons.length)];
                 headcanon = randomHeadcanon
                     .replace(/\*character1\*/g, char1)
@@ -358,13 +417,15 @@
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
-            populateDropdowns();
+            // Load headcanon data
+            loadHeadcanonData();
             
-            // Add change listeners to all selects
-            document.querySelectorAll('select').forEach(select => {
-                select.addEventListener('change', updateButtonStates);
+            // Add input listeners to all text inputs
+            document.querySelectorAll('input[type="text"]').forEach(input => {
+                input.addEventListener('input', updateButtonStates);
             });
             
+            // Initial button state update
             updateButtonStates();
         });
     </script>
