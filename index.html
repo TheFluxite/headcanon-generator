@@ -255,28 +255,19 @@
 
     <script>
         // Sample headcanon data - replace this with your actual JSON file
-        const headcanonData = {
-            "1 Character": [
-                "*character1* likes to drink soda",
-                "*character1* is not allowed to drink energy drinks",
-                "*character1* secretly collects vintage postcards",
-                "*character1* has a fear of butterflies",
-                "*character1* can play three different musical instruments",
-                "*character1* always sleeps with at least two pillows",
-                "*character1* has never successfully kept a houseplant alive",
-                "*character1* knows all the lyrics to at least 50 songs by heart"
-            ],
-            "2 Character": [
-                "*character1* likes to drink soda but *character2* doesn't",
-                "*character1* does not allow *character2* to drink energy drinks",
-                "*character1* and *character2* have weekly movie nights but always argue about what to watch",
-                "*character1* tries to teach *character2* how to cook but *character2* is hopeless in the kitchen",
-                "*character1* is a morning person while *character2* is definitely not",
-                "*character1* collects something weird and *character2* pretends not to understand why",
-                "*character1* is always cold so *character2* gives them their jacket",
-                "*character1* and *character2* have completely opposite music tastes but somehow make it work"
-            ]
-        };
+        let headcanonData = {};
+
+    // Load data from JSON file
+    fetch('headcanons.json')
+        .then(response => response.json())
+        .then(data => {
+            headcanonData = data;
+            populateDropdowns(); // Refresh dropdowns after loading data
+        })
+            .catch(error => {
+            console.error('Error loading headcanon data:', error);
+            // Fall back to hardcoded data if file fails to load
+    });
 
         // Extract unique character names from the headcanons
         const characters = new Set();
