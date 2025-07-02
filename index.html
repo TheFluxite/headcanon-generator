@@ -384,7 +384,7 @@
             }
 
             const filteredCharacters = allCharacters.filter(character =>
-                character.toLowerCase()
+                character.toLowerCase().includes(query.toLowerCase())
             );
 
             // Limit the number of suggestions to display
